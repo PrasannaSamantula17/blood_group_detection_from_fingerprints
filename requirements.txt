@@ -1,5 +1,6 @@
-streamlit
-tensorflow
+Flask
+flask-cors
 numpy
-pillow
-altair==4.2.2
+tensorflow
+Pillow
+gunicorn
