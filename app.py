@@ -12,6 +12,8 @@ CORS(app)  # Enable CORS
 # Define the model path
 model_path = os.path.join("model", "model_best.h5")
 
+print("Files in root:", os.listdir())
+
 # Load the model
 if not os.path.exists(model_path):
     print(f"Error: File not found at {model_path}")
