@@ -12,20 +12,15 @@ CORS(app)  # Enable CORS
 # Define the model path
 model_path = os.path.join("model", "model_best.h5")
 
-print("Files in root:", os.listdir())
-
 # Load the model
-if not os.path.exists(model_path):
-    print(f"Error: File not found at {model_path}")
+try:
+    print("Current directory:", os.getcwd())
+    print("Files available:", os.listdir())
+    model = tf.keras.models.load_model(model_path)
+    print("Model loaded successfully!")
+except Exception as e:
+    print("Error loading model:", str(e))
     model = None
-else:
-    try:
-        print("Flask TensorFlow version:", tf.__version__)
-        model = tf.keras.models.load_model(model_path)
-        print("Model loaded successfully!")
-    except Exception as e:
-        print("Error loading model:", str(e))
-        model = None
 
 # Define allowed file extensions
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "bmp"}
