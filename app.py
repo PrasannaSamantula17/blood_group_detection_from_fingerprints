@@ -1,63 +1,115 @@
-import streamlit as st
+from flask import Flask, request, jsonify, render_template
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
 from tensorflow.keras.applications.resnet50 import preprocess_input
-from PIL import Image
 import os
+from flask_cors import CORS
 
-st.set_page_config(page_title="Blood Group Detection", layout="centered")
+app = Flask(__name__)
+CORS(app)  # Enable CORS
 
-st.title("🩸 Blood Group Detection from Fingerprints")
+# Define the model path
+model_path = os.path.join("model", "model_best.h5")
 
-# -------- Load Model --------
-MODEL_PATH = "model_best.h5"   # ⚠️ Change if needed
-
-@st.cache_resource
-def load_model():
+# Load the model
+if not os.path.exists(model_path):
+    print(f"Error: File not found at {model_path}")
+    model = None
+else:
     try:
-        model = tf.keras.models.load_model(MODEL_PATH)
-        return model
+        print("Flask TensorFlow version:", tf.__version__)
+        model = tf.keras.models.load_model(model_path)
+        print("Model loaded successfully!")
     except Exception as e:
-        st.error(f"Error loading model: {e}")
-        return None
+        print("Error loading model:", str(e))
+        model = None
 
-model = load_model()
+# Define allowed file extensions
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "bmp"}
 
-# -------- File Upload --------
-uploaded_file = st.file_uploader(
-    "Upload Fingerprint Image",
-    type=["png", "jpg", "jpeg", "bmp"]
-)
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# -------- Prediction Logic --------
-if uploaded_file is not None:
+def preprocess_image(file):
+    """
+    Preprocesses the image exactly as in predict_blood_group.
+    """
+    # Save the uploaded file temporarily to load with load_img
+    temp_path = "temp_image." + file.filename.rsplit(".", 1)[1].lower()
+    file.save(temp_path)
+    
+    # Load and preprocess the image
+    img = load_img(temp_path, target_size=(256, 256))
+    img_array = img_to_array(img)
+    img_array = np.expand_dims(img_array, axis=0)
+    img_array = preprocess_input(img_array)
+    
+    # Clean up temporary file
+    os.remove(temp_path)
+    
+    print("Image array shape:", img_array.shape)  # Should be (1, 256, 256, 3)
+    return img_array
+
+@app.route('/')
+def home():
+    return render_template("indexed.html")
+
+@app.route("/predict", methods=["POST"])
+def predict():
+    print("Received request at /predict")
 
     if model is None:
-        st.error("Model not loaded properly.")
-    else:
-        try:
-            # Display image
-            image = Image.open(uploaded_file)
-            st.image(image, caption="Uploaded Image", use_column_width=True)
+        print("Model not loaded")
+        return jsonify({"error": "Model not loaded"}), 500
 
-            # Preprocess image
-            img = image.resize((256, 256))
-            img_array = img_to_array(img)
-            img_array = np.expand_dims(img_array, axis=0)
-            img_array = preprocess_input(img_array)
+    if "file" not in request.files:
+        print("No file provided")
+        return jsonify({"error": "No file provided"}), 400
 
-            # Prediction
-            prediction = model.predict(img_array)
-            predicted_class = int(np.argmax(prediction[0]))
-            confidence = float(np.max(prediction[0]))
+    file = request.files["file"]
+    print(f"Received file: {file.filename}")
 
-            class_names = ['A+', 'A-', 'AB+', 'AB-', 'B+', 'B-', 'O+', 'O-']
-            predicted_label = class_names[predicted_class]
+    if file.filename == "":
+        print("No file selected")
+        return jsonify({"error": "No file selected"}), 400
 
-            # Show result
-            st.success(f"Predicted Blood Group: {predicted_label}")
-            st.info(f"Confidence: {confidence:.4f}")
+    if not allowed_file(file.filename):
+        print("Invalid file type")
+        return jsonify({"error": "Invalid file type. Allowed types are png, jpg, jpeg, bmp"}), 400
 
-        except Exception as e:
-            st.error(f"Prediction failed: {e}")
+    try:
+        # Preprocess the image
+        img_array = preprocess_image(file)
+        print("Image preprocessed successfully!")
+    except Exception as e:
+        print(f"Image preprocessing failed: {str(e)}")
+        return jsonify({"error": f"Image preprocessing failed: {str(e)}"}), 400
+
+    try:
+        # Perform prediction
+        prediction = model.predict(img_array)
+        print("Raw prediction output:", prediction[0])  # Log raw output for debugging
+        predicted_class = int(np.argmax(prediction[0]))
+        confidence = float(np.max(prediction[0]))
+        print(f"Predicted class index: {predicted_class}, Confidence: {confidence}")
+    except Exception as e:
+        print(f"Model prediction failed: {str(e)}")
+        return jsonify({"error": f"Model prediction failed: {str(e)}"}), 500
+
+    # Define class names (exact match with predict_blood_group)
+    class_names = ['A+', 'A-', 'AB+', 'AB-', 'B+', 'B-', 'O+', 'O-']
+    if predicted_class >= len(class_names):
+        return jsonify({"error": "Predicted class index out of range"}), 500
+    predicted_label = class_names[predicted_class]
+
+    # Return the result as JSON
+    return jsonify({
+        "predicted_class": predicted_class,
+        "predicted_label": predicted_label,
+        "confidence": confidence
+    })
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
