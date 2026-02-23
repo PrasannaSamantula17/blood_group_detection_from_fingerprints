@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Blood Group Detection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            text-align: center;
+            margin-top: 60px;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            width: 400px;
+            margin: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        input[type="file"] {
+            margin: 15px 0;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #result {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+
+        #preview {
+            margin-top: 15px;
+            max-width: 200px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Blood Group Detection</h2>
+
+    <form id="upload-form">
+        <input type="file" id="fileInput" name="file" accept="image/*" required>
+        <br>
+        <button type="submit">Predict</button>
+    </form>
+
+    <img id="preview" />
+
+    <div id="result"></div>
+</div>
+
+<script>
+    const form = document.getElementById("upload-form");
+    const fileInput = document.getElementById("fileInput");
+    const resultDiv = document.getElementById("result");
+    const previewImage = document.getElementById("preview");
+
+    // Show preview
+    fileInput.addEventListener("change", function () {
+        const file = this.files[0];
+        if (file) {
+            previewImage.src = URL.createObjectURL(file);
+            previewImage.style.display = "block";
+        }
+    });
+
+    form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+
+        const file = fileInput.files[0];
+        if (!file) {
+            alert("Please select an image.");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        resultDiv.innerHTML = "Predicting...";
+
+        try {
+            const response = await fetch("/predict", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                resultDiv.innerHTML = `
+                    Predicted Blood Group: ${data.predicted_label} <br>
+                    Confidence: ${(data.confidence * 100).toFixed(2)}%
+                `;
+            } else {
+                resultDiv.innerHTML = "Error: " + data.error;
+            }
+
+        } catch (error) {
+            resultDiv.innerHTML = "Server error. Try again.";
+        }
+    });
+</script>
+
+</body>
+</html>
