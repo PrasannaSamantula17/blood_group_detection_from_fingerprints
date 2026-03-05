@@ -74,6 +74,6 @@ Project screenshots demonstrating the interface and prediction results are inclu
 
 ### Application Interface
 ![Interface](/1st.png)
-!(/2nd.png)
-!(/3rd.png)
-!(/4rth.png)
+![img](/2nd.png)
+![img](/3rd.png)
+![img](/4rth.png)
