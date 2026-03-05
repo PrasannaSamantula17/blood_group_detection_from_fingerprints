@@ -66,12 +66,6 @@ The goal of this project is to explore the **use of deep learning and fingerprin
 
 ---
 
-## Screenshots
-
-Project screenshots demonstrating the interface and prediction results are included in this repository.
-
-## Screenshots
-
 ### Application Interface
 ![Interface](/1st.png)
 ![Interface](/2nd.png)
